@@ -667,3 +667,293 @@ Original Author: Wen Bofu
 2026-03-30
 
 ---
+
+"""
+EM-Core + MLNF-Mem 参考实现（Python 伪代码）
+本代码仅为架构核心逻辑的示意性实现，非生产级代码。
+开发者可根据此框架扩展为真实系统。
+
+Original Architecture: Wen Bofu
+Reference Implementation: Skeleton Code for AGI Dual-Core System
+"""
+
+import time
+import uuid
+from enum import Enum
+from typing import List, Dict, Any, Optional
+from dataclasses import dataclass, field
+
+# ==================== 基础数据结构 ====================
+
+class MemoryLevel(Enum):
+    """五层记忆层级"""
+    L1_TEMPORARY = 1   # 临时层
+    L2_RECENT = 2      # 近期层
+    L3_MIDTERM = 3     # 中期层
+    L4_LONGTERM = 4    # 长期层
+    L5_CORE = 5        # 核心层（不可遗忘）
+
+
+@dataclass
+class MemoryItem:
+    """记忆条目"""
+    id: str
+    content: Any                 # 记忆内容（结构化数据）
+    level: MemoryLevel           # 当前层级
+    importance: float = 0.0      # 重要度 I ∈ [0,1]
+    reuse_count: int = 0         # 复用次数 C
+    created_at: float = field(default_factory=time.time)
+    last_accessed: float = field(default_factory=time.time)
+    # 情绪等价信号 S 和意义标签 V 在创建时注入
+    significance_signal: float = 0.0   # S
+    meaning_label: float = 0.0         # V
+
+    def update_importance(self, alpha=0.3, beta=0.3, gamma=0.4):
+        """更新重要度 I = I + α·S + β·V + γ·C"""
+        self.importance += (alpha * self.significance_signal +
+                            beta * self.meaning_label +
+                            gamma * self.reuse_count)
+        self.importance = min(1.0, self.importance)   # 上限1.0
+
+
+# ==================== MLNF-Mem 核心 ====================
+
+class SubFunnel:
+    """动态子漏斗 f_i：承载特定场景/对象的经验"""
+    def __init__(self, name: str, parent_controller: 'MLNFMem'):
+        self.name = name
+        self.parent = parent_controller
+        self.memory_layers: Dict[MemoryLevel, List[MemoryItem]] = {
+            level: [] for level in MemoryLevel
+        }
+        # 晋升阈值配置（时间秒、重要度）
+        self.promotion_thresholds = {
+            MemoryLevel.L1_TEMPORARY: (30, 0.3),    # 30秒且重要度>0.3 → L2
+            MemoryLevel.L2_RECENT: (3600, 0.5),     # 1小时且重要度>0.5 → L3
+            MemoryLevel.L3_MIDTERM: (86400, 0.7),   # 1天且重要度>0.7 → L4
+            MemoryLevel.L4_LONGTERM: (604800, 0.9), # 7天且重要度>0.9 → L5
+        }
+
+    def add_memory(self, item: MemoryItem):
+        """新增记忆，放入L1临时层"""
+        item.level = MemoryLevel.L1_TEMPORARY
+        self.memory_layers[item.level].append(item)
+
+    def access_memory(self, mem_id: str) -> Optional[MemoryItem]:
+        """访问记忆（触发复用计数和重要性更新）"""
+        for level in MemoryLevel:
+            for mem in self.memory_layers[level]:
+                if mem.id == mem_id:
+                    mem.last_accessed = time.time()
+                    mem.reuse_count += 1
+                    mem.update_importance()
+                    return mem
+        return None
+
+    def promote_memories(self):
+        """晋升检查：将满足条件的记忆提升到更高层"""
+        for from_level, to_level in [
+            (MemoryLevel.L1_TEMPORARY, MemoryLevel.L2_RECENT),
+            (MemoryLevel.L2_RECENT, MemoryLevel.L3_MIDTERM),
+            (MemoryLevel.L3_MIDTERM, MemoryLevel.L4_LONGTERM),
+            (MemoryLevel.L4_LONGTERM, MemoryLevel.L5_CORE),
+        ]:
+            threshold_time, threshold_imp = self.promotion_thresholds[from_level]
+            now = time.time()
+            promoted = []
+            for mem in self.memory_layers[from_level]:
+                if (now - mem.created_at > threshold_time and
+                    mem.importance > threshold_imp):
+                    mem.level = to_level
+                    self.memory_layers[to_level].append(mem)
+                    promoted.append(mem)
+            # 移除已晋升的记忆
+            for mem in promoted:
+                self.memory_layers[from_level].remove(mem)
+
+    def forget_low_importance(self, importance_threshold=0.1):
+        """遗忘低重要度记忆（L1-L4可遗忘，L5永不遗忘）"""
+        for level in [MemoryLevel.L1_TEMPORARY, MemoryLevel.L2_RECENT,
+                      MemoryLevel.L3_MIDTERM, MemoryLevel.L4_LONGTERM]:
+            self.memory_layers[level] = [
+                mem for mem in self.memory_layers[level]
+                if mem.importance >= importance_threshold
+            ]
+
+    def get_all_memories(self) -> List[MemoryItem]:
+        """获取子漏斗内所有记忆"""
+        all_mem = []
+        for level in MemoryLevel:
+            all_mem.extend(self.memory_layers[level])
+        return all_mem
+
+
+class MLNFMem:
+    """
+    多级嵌套漏斗记忆与经验中枢
+    MLNF-Mem: Multi-Level Nested Funnel Memory & Experience Hub
+    """
+    def __init__(self, max_sub_funnels: int = 100):
+        self.max_sub_funnels = max_sub_funnels
+        self.total_controller = TotalController(self)   # 总控漏斗 F0
+        self.sub_funnels: Dict[str, SubFunnel] = {}     # 动态子漏斗集合
+
+    def get_or_create_sub_funnel(self, scene_key: str) -> SubFunnel:
+        """获取或创建场景对应的子漏斗（宏观自收敛的入口）"""
+        if scene_key in self.sub_funnels:
+            return self.sub_funnels[scene_key]
+
+        # 子漏斗数量已达上限 → 宏观自收敛：合并相似漏斗
+        if len(self.sub_funnels) >= self.max_sub_funnels:
+            self._merge_similar_funnels()
+
+        # 创建新子漏斗
+        funnel = SubFunnel(scene_key, self)
+        self.sub_funnels[scene_key] = funnel
+        return funnel
+
+    def _merge_similar_funnels(self):
+        """宏观自收敛：合并最相似的两个子漏斗（简化：基于记忆内容的相似度）"""
+        if len(self.sub_funnels) >= 2:
+            keys = list(self.sub_funnels.keys())
+            target = self.sub_funnels[keys[0]]
+            source = self.sub_funnels[keys[1]]
+            for mem in source.get_all_memories():
+                target.add_memory(mem)
+            del self.sub_funnels[keys[1]]
+
+    def step_maintenance(self):
+        """定期维护：晋升、遗忘、合并"""
+        for funnel in self.sub_funnels.values():
+            funnel.promote_memories()
+            funnel.forget_low_importance()
+
+        self.total_controller.cleanup_idle_funnels()
+
+
+class TotalController:
+    """总控漏斗 F0：统一规则与调度"""
+    def __init__(self, memory_system: MLNFMem):
+        self.memory_system = memory_system
+
+    def cleanup_idle_funnels(self, idle_days=7):
+        """删除长期未使用的子漏斗（回收资源）"""
+        pass
+
+    def enforce_safety_rules(self, action: Any) -> bool:
+        """伦理与安全规则校验（优先级最高）"""
+        if "harm" in str(action).lower():
+            return False
+        return True
+
+
+# ==================== EM-Core 核心（简化） ====================
+
+class EM_Core:
+    """
+    EM-Core AGI 终极骨架
+    Embodied Memory & Cognitive Core
+    """
+    def __init__(self):
+        self.modules = {
+            1: "情境解析",
+            2: "目标管理",
+            3: "因果推理",
+            4: "心智模拟",
+            5: "伦理仲裁",
+            6: "类比迁移",
+            7: "工作记忆",
+            8: "元认知",
+            9: "内生动机",
+            10: "社会心智",
+            11: "抽象创造（未激活）",
+        }
+        self.memory = MLNFMem()          # 记忆中枢
+        self.resource_scheduler = ResourceScheduler(self)  # 12号模块
+
+    def process_task(self, task: Any) -> Any:
+        """处理任务的主入口（简化）"""
+        success, reason = self.simulate_causal_reasoning(task)
+        if not success:
+            self.report_failure_to_goal_manager(reason)
+            result = self.resource_scheduler.request_external_resource(task, reason)
+            return result
+        return "success"
+
+    def simulate_causal_reasoning(self, task) -> tuple:
+        """模拟因果推理模块（3号）的失败判定"""
+        if "quantum" in str(task).lower():
+            return False, "因果推理：无法建立有效因果关联"
+        return True, None
+
+    def report_failure_to_goal_manager(self, reason: str):
+        """向目标管理模块（2号）上报失败"""
+        print(f"[目标管理] 收到失败报告: {reason}")
+
+    def check_working_memory_capacity(self) -> bool:
+        """7号模块：工作记忆容量检查"""
+        return True
+
+
+class ResourceScheduler:
+    """12号模块：资源全域调度"""
+    def __init__(self, core: EM_Core):
+        self.core = core
+
+    def request_external_resource(self, task: Any, failure_reason: str) -> Any:
+        """接收目标管理模块的资源申请，做合规性校验"""
+        if not self._is_local_capability_exhausted(task):
+            return "拒绝：本地能力未穷尽，应继续尝试内生解决"
+
+        return self._call_external_model(task)
+
+    def _is_local_capability_exhausted(self, task) -> bool:
+        """检查本地认知+记忆是否确实无法解决"""
+        return True
+
+    def _call_external_model(self, task) -> Any:
+        """调用外部大模型（需过滤、校验）"""
+        print("[12号] 启动外挂资源...")
+        result = f"外部模型处理结果: {task}"
+        if not self._safety_filter(result):
+            return "拒绝：外部输出未通过伦理校验"
+        return result
+
+    def _safety_filter(self, output: str) -> bool:
+        """过滤不安全输出（示例）"""
+        if "danger" in output.lower():
+            return False
+        return True
+
+
+# ==================== 使用示例 ====================
+
+if __name__ == "__main__":
+    # 初始化系统
+    core = EM_Core()
+    memory = core.memory
+
+    # 创建两个场景的子漏斗
+    funnel_home = memory.get_or_create_sub_funnel("home")
+    funnel_work = memory.get_or_create_sub_funnel("work")
+
+    # 添加记忆：用户不喜欢辣椒（高意义）
+    mem = MemoryItem(
+        id=str(uuid.uuid4()),
+        content="user_preference: no spicy food",
+        level=MemoryLevel.L1_TEMPORARY,
+        meaning_label=0.9,
+        significance_signal=0.0,
+    )
+    mem.update_importance()
+    funnel_home.add_memory(mem)
+
+    # 访问记忆，增加复用次数
+    funnel_home.access_memory(mem.id)
+
+    # 定期维护：晋升、遗忘
+    memory.step_maintenance()
+
+    # 处理任务
+    result = core.process_task("cook dinner for user")
+    print("最终结果:", result)
