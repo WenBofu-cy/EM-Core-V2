@@ -373,3 +373,297 @@ EM-Core AGI 终极骨架搭配 MLNF‑Mem 记忆与经验中枢，构建了全�
 
 ---
 
+
+
+---
+
+# EM-Core AGI Ultimate Skeleton + MLNF-Mem V2.0 Dual-Core Final Version
+**World's First Safe & Controllable AGI Architecture | Humanoid Robot Core Brain & Memory Hub**
+
+[Original · Open Source · Citable · Engineerable]
+
+- Original Author: Wen Bofu
+- MLNF-Mem First Release: 2026-03-17
+- EM-Core First Release: 2026-03-25
+- Final Version Date: 2026-03-30
+- Release Platforms: Zhihu, CSDN, Juejin, GitHub (Chinese/English bilingual release)
+
+**World's First · Fully Open · Commercial Use · Large-Scale Deployment**
+
+---
+
+## Original Innovation Statement
+This is the world's first full public release of the **EM-Core AGI Ultimate Skeleton** and **MLNF-Mem Memory & Experience Hub** (Multi-Level Nested Funnel Memory System). I am the sole original author, and timestamps, content records, and edit history across all platforms serve as legal proof of authorship and originality.
+
+### Core Innovations of MLNF-Mem
+1. Dual-layer memory architecture: Total Controller Funnel (F₀) + Dynamic Sub-Funnels
+2. 5-level one-way memory promotion & brain-like memory consolidation pathway
+3. Three driving mechanisms: Significance Signal (S), Meaning Label (V), Reuse Count (C)
+4. Macro self-convergence mechanism for behavioral consistency
+5. Lightweight lifelong memory capacity constraint system
+6. Experience-driven, no-predefined personality emergence
+7. Commercial safety mechanism with preset memory for autonomous growth
+8. Loosely coupled memory hub architecture complementary to LLMs
+9. Educable, growable, intervenable endogenous learning closed-loop
+10. Safe and controllable cognitive memory substrate for humanoid robots
+
+### Core Innovations of EM-Core
+1. Integrated embodied cognition + memory AGI architecture
+2. 12-module ECC (Embodied Cognitive Core) modular system
+3. Three core safety axioms: Endogenous Priority, External Resource Isolation, Human-in-the-Loop Lockdown
+4. Standardized unsolvable judgment & resource scheduling escalation process
+5. Decoupled engineering architecture: Cognition-Memory-Motion
+6. 7-layer global controlled circulation safety mechanism
+7. Experience-driven AGI mind generation without predefined personality
+8. Strict isolation between endogenous and external resources
+9. General cognitive framework adaptable to all robot types
+10. Safe, growable AGI deployment logic
+
+---
+
+## Open Source & Rights Statement
+This entire architecture (including theory, formal definitions, rules, design, engineering constraints, and all text content) is licensed under the **Creative Commons Attribution 4.0 International (CC BY 4.0)**.
+
+### 1. Freedom of Use
+Any individual, team, enterprise, or research institution may freely use, implement, modify, extend, integrate, and commercially deploy this architecture without prior permission or fees. Commercial use is fully permitted with no application restrictions, royalties, or additional barriers.
+
+### 2. Attribution Requirement (Only Condition)
+All derivative products, projects, papers, patents, or systems based on EM-Core and MLNF-Mem must prominently retain the original author attribution:
+> Cognitive architecture based on EM-Core AGI Ultimate Skeleton, memory architecture based on MLNF-Mem (Multi-Level Nested Funnel Memory System), original author: Wen Bofu.
+
+### 3. Derivative Version Restrictions
+- You may not claim derivative versions as the original EM-Core/MLNF-Mem or official releases.
+- You may not remove, obscure, or weaken the original author attribution and innovation statement.
+- You must clearly document changes and scope in derivative versions to distinguish them from the original.
+
+### 4. Rights Protection
+The authorship, naming rights, and original theoretical system of this architecture are permanently retained by me. Any act of counterfeiting, plagiarism, or academic fraud is prohibited, and I reserve all legal rights to pursue liability.
+
+---
+
+## Architecture Overview
+This dual-core system is the world's first **safe, growable, large-scale deployable AGI architecture** for humanoid robots and embodied intelligence:
+- **EM-Core**: The core "brain" for cognitive decision-making
+- **MLNF-Mem**: The dedicated "memory hub" for experience storage and evolution
+- **Cerebellum**: Motion adaptation layer (hardware-agnostic, vendor-implementable)
+
+It solves critical flaws of current LLM-only routes: hallucinations, lack of long-term memory, uncontrollability, and over-reliance on external resources. It enables:
+- Personalized development on small terminals by individual developers
+- Cloud-scale control of millions of humanoid robots by enterprises
+- Full-scenario applications: home care, industrial robotics, security, healthcare, education, public services
+
+---
+
+## Part 1: MLNF-Mem V2.0 Memory & Experience Hub
+### Multi-Level Nested Funnel Memory System
+#### Abstract
+Current humanoid robots and embodied intelligence lack long-term stable memory, behavioral consistency, autonomous growth, and safety guarantees. Traditional LLMs and RAG fail to form continuously evolving individual experiences, while neural network memory is uninterpretable and uncontrollable.
+
+MLNF-Mem addresses this with a total controller funnel (global rules) + dynamic sub-funnels (scenario-specific experience), using a 5-level temporal structure for memory selection, consolidation, and forgetting. When sub-funnel count hits the resource limit, the system naturally converges macroscopically to ensure consistent behavior.
+
+It supports lightweight lifelong memory, experience-driven personality emergence, and educable learning, with loose coupling to LLMs—providing a brain-like, safe, deployable memory and cognitive hub for robots.
+
+### Core Design Philosophy
+Human memory follows: **information diverges initially, then unifies at higher levels**. MLNF-Mem simulates this:
+1. Early phase: Split sub-funnels to adapt to diverse scenarios
+2. Sub-funnel limit reached: No new creation, merge similar funnels
+3. New information: Reuse/merge into existing sub-funnels
+4. Global convergence: Behavior stabilizes under total controller rules
+
+This "divergence-convergence" pattern is **macro self-convergence**—not mathematical convergence, but an inevitable engineering behavior under finite compute/storage.
+
+### Formal Definitions
+- F₀: Total Controller Funnel (global rules & scheduling)
+- F = {f₁,…,fₙ}: Dynamic Sub-Funnels (max count Nmax)
+- L = {l₁,l₂,l₃,l₄,l₅}: 5 memory levels (Temporary → Recent → Mid-term → Long-term → Core)
+- I: Importance score (I ∈ [0,1])
+- M: Memory item
+- S: Significance Signal (emotion-equivalent)
+- V: Meaning Label (long-term value anchor)
+- C: Reuse Count
+
+**Importance Update**:
+I ← I + α·S + β·V + γ·C
+
+**Promotion Rule**:
+lᵢ₊₁ ← lᵢ iff (Time > τᵢ) AND (Importance > θᵢ)
+
+**Forgetting Rule**:
+Low-importance/low-reuse items are actively pruned (Core level L5 is never forgotten).
+
+### Macro Self-Convergence Mechanism
+1. Initial phase: Create sub-funnels for new scenarios
+2. At Nmax: Stop creating new funnels
+3. New scenarios: Match/merge into existing funnels
+4. All experiences constrained by F₀ rules
+5. Individual behavior (preferences, safety) stabilizes
+6. System returns from "divergent branches" to "unified consistency"
+
+This is a spontaneous normalization under physical resource constraints—not a fictional feature.
+
+### System Architecture
+1. **Total Controller Funnel (F₀)**: Unifies promotion/forgetting/arbitration/scheduling rules
+2. **Dynamic Sub-Funnels**: Auto-created per scenario, merged at limit
+3. **5-Level Memory Hierarchy**: One-way, brain-like consolidation (L1→L2→L3→L4→L5)
+4. **Three Driving Forces**:
+   - Signality: High-risk/stimulus events move to deep memory
+   - Meaning: Identity/goal/safety-related memories persist long-term
+   - Reuse: Frequently accessed memories strengthen (use-it-or-lose-it)
+5. **Safety Arbitration & Lockdown**: Ethical rules take highest priority
+6. **LLM Collaboration Interface**: LLMs handle perception/parsing; MLNF-Mem handles long-term memory/consistency/growth
+
+### Memory Capacity & Lightweight Design
+- Lifetime experience constrained to **1GB–10GB** structured storage
+- Mechanisms: Tiered pruning, similarity merging, summary storage, key-pattern only
+- Suitable for edge and cloud deployment at scale
+
+### Learning & Personality Emergence
+No predefined personality—individuality emerges from:
+- Long-term memory accumulation
+- High-frequency behavior reuse
+- Stable decision patterns after convergence
+- Autonomous preferences within safety rules
+
+Learning is endogenous:
+**Memory Induction → Skill Solidification → Experience Iteration → Continuous Growth**
+
+### Engineering Robustness
+- Hard sub-funnel count limit
+- Memory write validation
+- Strict temporal ordering
+- Idle resource auto-recycling
+- Conflict forced arbitration
+- Full traceability, intervention, and reset
+
+### Comparison to Existing Technologies
+| Metric | RAG | Neural Memory | LLMs | Brain-Inspired | MLNF-Mem |
+|--------|-----|---------------|------|----------------|----------|
+| Temporal Hierarchy | None | Implicit | None | Yes | Explicit 5-level |
+| Forgetting Mechanism | None | None | None | Partial | Active pruning |
+| Behavioral Consistency | None | None | None | None | Macro self-convergence |
+| Interpretability | Low | None | Low | Low | Fully auditable |
+| Deployability | High | Low | Medium | Very Low | High |
+
+### Application Value
+- **Home Care Robots**: Long-term memory of user preferences/allergies
+- **Industrial Robots**: Accumulate operational experience, optimize behavior
+- **Cloud Hubs**: Control millions of robots while preserving individualization
+- **Special Scenarios**: Security, healthcare, education—safe, controllable, traceable
+
+### Conclusion
+MLNF-Mem V2.0 is a global memory hub for embodied intelligence, built on the "divergence-convergence" law. It enables stable behavior, brain-like mechanisms, engineering feasibility, and commercial scalability—complementing LLMs to form the next-generation trustworthy, growable AGI substrate, and serving as the memory backbone of EM-Core.
+
+---
+
+## Part 2: EM-Core AGI Ultimate Skeleton
+### Embodied Memory & Cognitive Core
+#### Naming
+- Official Name: EM-Core
+- Full Name: Embodied Memory & Cognitive Core
+- Short Name: EM
+- Core Components: ECC (12 modules) + MLNF-Mem + Cerebellum + Global Circulation
+- Target Scenarios: AGI general intelligence, humanoid robot brains, service/industrial robots
+
+### Three Core Safety Axioms
+1. **Endogenous Priority Axiom**: Use local cognitive/memory capabilities first. Only escalate to external resources via Module 12 (Resource Scheduler) when unsolvable.
+2. **External Isolation Axiom**: Only Module 12 may access external LLMs. Outputs must pass filtering, ethical checks, and validation before entering the system.
+3. **Human-in-the-Loop Lockdown Axiom**: If Modules 1–11 fail, escalate to Module 12. If Module 12 also fails, all autonomous actions stop immediately—no hallucinations, no forced attempts, full handover to humans.
+
+### Key FAQs
+#### Q1: How does the system judge "unsolvable"?
+Hard-coded failure rules (engineerable, no ambiguity):
+1. Module 7 (Working Memory): Capacity exhausted, cannot build reasoning chains
+2. Module 4 (Mental Simulation): All plans exceed risk thresholds, no feasible path
+3. Module 6 (Analogy Transfer): No high-confidence past experience available
+4. Module 3 (Causal Reasoning): Cannot establish valid causal links to goal
+5. Module 5 (Ethics Arbitration): All plans are rejected by safety rules
+6. Module 2 (Goal Management): Goal is physically impossible under current hardware/environment
+
+#### Q2: Who submits unsolvable tasks to Module 12?
+Standard escalation flow (no human intervention, no bypass):
+1. Any Module 1–11 triggers failure → reports to Module 2 (Goal Manager)
+2. Module 2 aggregates all failures, confirms endogenous capabilities are exhausted
+3. Module 2 submits formal request to Module 12 (Resource Scheduler) with task and evidence
+
+#### Q3: How does Module 12 handle requests?
+Module 12 does not participate in cognition—it only validates:
+1. **Endogenous Priority Check**: Are local capabilities truly exhausted?
+2. **Permission Check**: Is resource access authorized?
+- Pass: Launch external LLM assistance (filtered/validated)
+- Fail: Trigger Human-in-the-Loop Lockdown, stop all actions, hand over to humans
+
+### Top-Level Architecture Logic
+Perceptual Input → ECC (Cognitive Decision) ↔ MLNF-Mem (Memory) → Cerebellum (Motion) → Controlled Output + Feedback + Human Lockdown
+
+- **ECC**: Thinking, reasoning, decision, learning, safety, scheduling
+- **MLNF-Mem**: Experience storage, consolidation, use-it-or-lose-it, habit formation
+- **Cerebellum**: Sole output gateway, motion coordination, hardware adaptation
+- **Global Circulation**: Pure information flow, no independent mind, ensures end-to-end safety
+
+### 12 Core Modules of ECC
+1. **Situation Parsing**: Parse scene/entities/environment into structured context
+2. **Goal Management**: Set priorities, decompose tasks, plan steps, escalate failures
+3. **Causal Reasoning**: Build causal graphs, predict action outcomes
+4. **Mental Simulation**: Pre-verify plans, assess risk/cost, trigger external help if needed
+5. **Ethics Arbitration**: Enforce safety rules (highest priority), block harmful actions
+6. **Analogy Transfer**: Reuse past experience, avoid catastrophic interference
+7. **Working Memory**: Temporary computation buffer, auto-cleared post-task, valid experiences saved to MLNF-Mem
+8. **Meta-Cognition**: Self-reflect, assess capability limits, correct biases, maintain self-model
+9. **Intrinsic Motivation**: Drive learning/exploration based on capability gaps
+10. **Social Mind**: Understand user intent/emotion, adapt social interaction
+11. **Abstract Creation**: Deactivated in V2.0 (reserved for future high-order cognition; disabled to prevent hallucinations from insufficient experience)
+12. **Resource Scheduler**: Global scheduling of compute/power/network/LLM access, no cognition—only validation and lockdown
+
+### Cerebellum (Motion Adaptation Layer)
+- **Role**: Sole output gateway, translates high-level commands to low-level robot signals
+- **Input**: ECC high-level commands (grab, move, walk, place, avoid, etc.)
+- **Output**: Hardware-specific low-level control signals (vendor-defined)
+- **Implementation**: Left blank—no algorithms/code provided, fully vendor-customizable
+- **Value**: Decouples cognition from hardware, enabling EM-Core to run on any robot arm/humanoid robot
+
+### 7-Layer Global Controlled Circulation
+1. **Input Filtering**: Clean noisy input to protect core cognition
+2. **Brain-Memory Modulation**: Memory updates module weights; ethics can override
+3. **Brain-Cerebellum Bridge**: Reliable command transmission to motion layer
+4. **Local-External Split**: Isolate endogenous vs. external resources
+5. **Controlled Output**: Regulate behavior/language to prevent runaway
+6. **Feedback Loop**: Execution results flow back to memory for learning
+7. **Human Lockdown**: Ultimate safety fallback—stop all autonomy on failure
+
+### Comparison to Traditional AGI Routes
+| Approach | Core Flaw | EM-Core Advantage |
+|----------|-----------|-------------------|
+| EU Human Brain Project (HBP) | Overly biomimetic, heavy hardware, poor deployability | Direct cognitive skeleton design, engineering-first |
+| Pure LLM Route | Hallucinations, no long-term memory, unsafe, over-reliance on external resources | Endogenous first, solid memory, multi-layer safety locks |
+| EM-Core | — | Full Cognition-Memory-Motion decoupling, safe isolation, low cost, easy deployment |
+
+### Conclusion
+EM-Core + MLNF-Mem is the world's first complete, safe, deployable dual-core AGI system, breaking current LLM limitations. It supports both small-terminal personalization and large-scale cloud control, providing the foundational substrate for humanoid robots and general AI—pushing AGI toward safe, controllable, and sustainable real-world deployment.
+
+---
+
+## Originality Statement
+This work is entirely original. I, Wen Bofu, am the sole author and retain all rights to the EM-Core AGI Ultimate Skeleton and MLNF-Mem system.
+
+## Author Info
+- Original Author: Wen Bofu
+- Release Platforms: Zhihu, CSDN, Juejin, GitHub
+- MLNF-Mem Release: 2026-03-17
+- EM-Core Release: 2026-03-25
+- Final Version: 2026-03-30
+- Contact: 710705008@qq.com (for deep collaboration only; no prior contact needed to use this architecture)
+
+## Citation Format
+1. Wen Bofu. MLNF-Mem: Multi-Level Nested Funnel Memory & Experience Hub — A Brain-Like Cognitive Memory System for Humanoid Robots [EB/OL]. 2026-03-17.
+2. Wen Bofu. EM-Core AGI Ultimate Skeleton — Embodied Memory & Cognitive Core for Humanoid Robots [EB/OL]. 2026-03-25.
+
+---
+
+*This is the final version. No further changes to core architecture. Future updates will include application cases, FAQs, and engineering implementation guides.*
+
+*— Empowering Cognitive Architectures for Safe, Growable, Deployable General Intelligence*
+
+Original Author: Wen Bofu
+2026-03-30
+
+---
