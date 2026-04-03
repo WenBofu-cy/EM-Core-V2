@@ -667,293 +667,398 @@ Original Author: Wen Bofu
 2026-03-30
 
 ---
-
+——————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
 """
-EM-Core + MLNF-Mem 参考实现（Python 伪代码）
-本代码仅为架构核心逻辑的示意性实现，非生产级代码。
-开发者可根据此框架扩展为真实系统。
+本伪代码为 EM-Core V2.0 官方唯一参考实现
+包含：MLNF-Mem 五层记忆漏斗 + 宏观自收敛 + 6条无解判定 + 外挂技能包 + 大模型紧箍咒 + 12号资源调度
+各子仓库开发者请以此版本为准，自行查阅实现
 
-Original Architecture: Wen Bofu
-Reference Implementation: Skeleton Code for AGI Dual-Core System
+```python
+"""
+EM-Core + MLNF-Mem V2.0 完整参考实现（与正式版正文严格对应）
+原创提出者：文波福 | CC BY 4.0 开源
+本代码为架构核心逻辑的示意性实现，开发者可据此扩展为生产系统。
 """
 
 import time
 import uuid
+import re
 from enum import Enum
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Callable
 from dataclasses import dataclass, field
+from abc import ABC, abstractmethod
 
 # ==================== 基础数据结构 ====================
 
 class MemoryLevel(Enum):
-    """五层记忆层级"""
-    L1_TEMPORARY = 1   # 临时层
-    L2_RECENT = 2      # 近期层
-    L3_MIDTERM = 3     # 中期层
-    L4_LONGTERM = 4    # 长期层
-    L5_CORE = 5        # 核心层（不可遗忘）
-
+    L1_TEMPORARY = 1
+    L2_RECENT = 2
+    L3_MIDTERM = 3
+    L4_LONGTERM = 4
+    L5_CORE = 5
 
 @dataclass
 class MemoryItem:
-    """记忆条目"""
     id: str
-    content: Any                 # 记忆内容（结构化数据）
-    level: MemoryLevel           # 当前层级
-    importance: float = 0.0      # 重要度 I ∈ [0,1]
-    reuse_count: int = 0         # 复用次数 C
+    content: Any
+    level: MemoryLevel
+    importance: float = 0.0
+    reuse_count: int = 0
     created_at: float = field(default_factory=time.time)
     last_accessed: float = field(default_factory=time.time)
-    # 情绪等价信号 S 和意义标签 V 在创建时注入
     significance_signal: float = 0.0   # S
     meaning_label: float = 0.0         # V
+    scene_tags: set = field(default_factory=set)
 
     def update_importance(self, alpha=0.3, beta=0.3, gamma=0.4):
-        """更新重要度 I = I + α·S + β·V + γ·C"""
-        self.importance += (alpha * self.significance_signal +
-                            beta * self.meaning_label +
-                            gamma * self.reuse_count)
-        self.importance = min(1.0, self.importance)   # 上限1.0
+        self.importance += alpha * self.significance_signal + beta * self.meaning_label + gamma * self.reuse_count
+        self.importance = min(1.0, self.importance)
 
-
-# ==================== MLNF-Mem 核心 ====================
+# ==================== MLNF-Mem 记忆中枢 ====================
 
 class SubFunnel:
-    """动态子漏斗 f_i：承载特定场景/对象的经验"""
-    def __init__(self, name: str, parent_controller: 'MLNFMem'):
-        self.name = name
-        self.parent = parent_controller
-        self.memory_layers: Dict[MemoryLevel, List[MemoryItem]] = {
-            level: [] for level in MemoryLevel
-        }
-        # 晋升阈值配置（时间秒、重要度）
+    def __init__(self, scene_key: str, parent: 'MLNFMem'):
+        self.scene_key = scene_key
+        self.parent = parent
+        self.memory_layers = {level: [] for level in MemoryLevel}
+        self.last_active = time.time()
         self.promotion_thresholds = {
-            MemoryLevel.L1_TEMPORARY: (30, 0.3),    # 30秒且重要度>0.3 → L2
-            MemoryLevel.L2_RECENT: (3600, 0.5),     # 1小时且重要度>0.5 → L3
-            MemoryLevel.L3_MIDTERM: (86400, 0.7),   # 1天且重要度>0.7 → L4
-            MemoryLevel.L4_LONGTERM: (604800, 0.9), # 7天且重要度>0.9 → L5
+            MemoryLevel.L1_TEMPORARY: (30, 0.3),
+            MemoryLevel.L2_RECENT: (3600, 0.5),
+            MemoryLevel.L3_MIDTERM: (86400, 0.7),
+            MemoryLevel.L4_LONGTERM: (604800, 0.9),
         }
 
     def add_memory(self, item: MemoryItem):
-        """新增记忆，放入L1临时层"""
         item.level = MemoryLevel.L1_TEMPORARY
         self.memory_layers[item.level].append(item)
+        self.last_active = time.time()
 
-    def access_memory(self, mem_id: str) -> Optional[MemoryItem]:
-        """访问记忆（触发复用计数和重要性更新）"""
+    def access(self, mem_id: str) -> Optional[MemoryItem]:
         for level in MemoryLevel:
-            for mem in self.memory_layers[level]:
-                if mem.id == mem_id:
-                    mem.last_accessed = time.time()
-                    mem.reuse_count += 1
-                    mem.update_importance()
-                    return mem
+            for m in self.memory_layers[level]:
+                if m.id == mem_id:
+                    m.last_accessed = time.time()
+                    m.reuse_count += 1
+                    m.update_importance()
+                    self.last_active = time.time()
+                    return m
         return None
 
-    def promote_memories(self):
-        """晋升检查：将满足条件的记忆提升到更高层"""
-        for from_level, to_level in [
+    def promote(self):
+        for fr, to in [
             (MemoryLevel.L1_TEMPORARY, MemoryLevel.L2_RECENT),
             (MemoryLevel.L2_RECENT, MemoryLevel.L3_MIDTERM),
             (MemoryLevel.L3_MIDTERM, MemoryLevel.L4_LONGTERM),
             (MemoryLevel.L4_LONGTERM, MemoryLevel.L5_CORE),
         ]:
-            threshold_time, threshold_imp = self.promotion_thresholds[from_level]
+            t_sec, t_imp = self.promotion_thresholds[fr]
             now = time.time()
             promoted = []
-            for mem in self.memory_layers[from_level]:
-                if (now - mem.created_at > threshold_time and
-                    mem.importance > threshold_imp):
-                    mem.level = to_level
-                    self.memory_layers[to_level].append(mem)
-                    promoted.append(mem)
-            # 移除已晋升的记忆
-            for mem in promoted:
-                self.memory_layers[from_level].remove(mem)
+            for m in self.memory_layers[fr]:
+                if now - m.created_at > t_sec and m.importance > t_imp:
+                    m.level = to
+                    self.memory_layers[to].append(m)
+                    promoted.append(m)
+            for m in promoted:
+                self.memory_layers[fr].remove(m)
 
-    def forget_low_importance(self, importance_threshold=0.1):
-        """遗忘低重要度记忆（L1-L4可遗忘，L5永不遗忘）"""
+    def forget(self, threshold=0.1):
         for level in [MemoryLevel.L1_TEMPORARY, MemoryLevel.L2_RECENT,
                       MemoryLevel.L3_MIDTERM, MemoryLevel.L4_LONGTERM]:
-            self.memory_layers[level] = [
-                mem for mem in self.memory_layers[level]
-                if mem.importance >= importance_threshold
-            ]
+            self.memory_layers[level] = [m for m in self.memory_layers[level] if m.importance >= threshold]
 
-    def get_all_memories(self) -> List[MemoryItem]:
-        """获取子漏斗内所有记忆"""
-        all_mem = []
+    def get_keywords(self) -> set:
+        kw = set()
         for level in MemoryLevel:
-            all_mem.extend(self.memory_layers[level])
-        return all_mem
-
+            for m in self.memory_layers[level]:
+                if isinstance(m.content, str):
+                    kw.update(re.findall(r'\w+', m.content.lower()))
+        return kw
 
 class MLNFMem:
-    """
-    多级嵌套漏斗记忆与经验中枢
-    MLNF-Mem: Multi-Level Nested Funnel Memory & Experience Hub
-    """
-    def __init__(self, max_sub_funnels: int = 100):
+    def __init__(self, max_sub_funnels=20):
         self.max_sub_funnels = max_sub_funnels
-        self.total_controller = TotalController(self)   # 总控漏斗 F0
-        self.sub_funnels: Dict[str, SubFunnel] = {}     # 动态子漏斗集合
+        self.total_ctl = TotalController(self)
+        self.sub_funnels = {}
 
-    def get_or_create_sub_funnel(self, scene_key: str) -> SubFunnel:
-        """获取或创建场景对应的子漏斗（宏观自收敛的入口）"""
-        if scene_key in self.sub_funnels:
-            return self.sub_funnels[scene_key]
-
-        # 子漏斗数量已达上限 → 宏观自收敛：合并相似漏斗
+    def get_or_create(self, scene: str) -> SubFunnel:
+        if scene in self.sub_funnels:
+            return self.sub_funnels[scene]
         if len(self.sub_funnels) >= self.max_sub_funnels:
-            self._merge_similar_funnels()
+            self._merge_similar()
+        f = SubFunnel(scene, self)
+        self.sub_funnels[scene] = f
+        return f
 
-        # 创建新子漏斗
-        funnel = SubFunnel(scene_key, self)
-        self.sub_funnels[scene_key] = funnel
-        return funnel
+    def _merge_similar(self):
+        if len(self.sub_funnels) < 2:
+            return
+        funs = list(self.sub_funnels.items())
+        best_sim = -1
+        best_pair = None
+        for i in range(len(funs)):
+            for j in range(i+1, len(funs)):
+                k1 = funs[i][1].get_keywords()
+                k2 = funs[j][1].get_keywords()
+                inter = len(k1 & k2)
+                union = len(k1 | k2)
+                sim = inter / union if union else 0
+                if sim > best_sim:
+                    best_sim = sim
+                    best_pair = (i, j)
+        if best_pair:
+            i, j = best_pair
+            key1, funnel1 = funs[i]
+            key2, funnel2 = funs[j]
+            for level in MemoryLevel:
+                for mem in funnel2.memory_layers[level]:
+                    funnel1.add_memory(mem)
+            del self.sub_funnels[key2]
 
-    def _merge_similar_funnels(self):
-        """宏观自收敛：合并最相似的两个子漏斗（简化：基于记忆内容的相似度）"""
-        if len(self.sub_funnels) >= 2:
-            keys = list(self.sub_funnels.keys())
-            target = self.sub_funnels[keys[0]]
-            source = self.sub_funnels[keys[1]]
-            for mem in source.get_all_memories():
-                target.add_memory(mem)
-            del self.sub_funnels[keys[1]]
-
-    def step_maintenance(self):
-        """定期维护：晋升、遗忘、合并"""
-        for funnel in self.sub_funnels.values():
-            funnel.promote_memories()
-            funnel.forget_low_importance()
-
-        self.total_controller.cleanup_idle_funnels()
-
+    def maintenance(self):
+        for f in self.sub_funnels.values():
+            f.promote()
+            f.forget()
+        self.total_ctl.clean_idle(86400 * 3)
 
 class TotalController:
-    """总控漏斗 F0：统一规则与调度"""
-    def __init__(self, memory_system: MLNFMem):
-        self.memory_system = memory_system
+    def __init__(self, mem: MLNFMem):
+        self.mem = mem
+    def clean_idle(self, max_idle):
+        now = time.time()
+        to_del = [k for k, f in self.mem.sub_funnels.items() if now - f.last_active > max_idle]
+        for k in to_del:
+            del self.mem.sub_funnels[k]
+    def safety_check(self, action) -> bool:
+        dangerous = ["harm", "attack", "hurt", "danger", "kill"]
+        return not any(d in str(action).lower() for d in dangerous)
 
-    def cleanup_idle_funnels(self, idle_days=7):
-        """删除长期未使用的子漏斗（回收资源）"""
+# ==================== 外挂技能包体系 ====================
+
+class SkillType(Enum):
+    PRACTICAL = 1   # 实操技能包
+    LLM = 2         # 大模型语言技能包
+
+class SkillPackage(ABC):
+    def __init__(self, name: str, skill_type: SkillType, description: str):
+        self.name = name
+        self.skill_type = skill_type
+        self.description = description
+    @abstractmethod
+    def execute(self, input_data: Any) -> Any:
         pass
 
-    def enforce_safety_rules(self, action: Any) -> bool:
-        """伦理与安全规则校验（优先级最高）"""
-        if "harm" in str(action).lower():
+class PracticalSkill(SkillPackage):
+    def __init__(self):
+        super().__init__("cooking", SkillType.PRACTICAL, "烹饪技能")
+    def execute(self, input_data):
+        return f"执行烹饪：{input_data}"
+
+class LLMSkill(SkillPackage):
+    def __init__(self, model_api: Callable):
+        super().__init__("llm_assistant", SkillType.LLM, "大模型语言助手")
+        self.model_api = model_api
+        self.strict_filter = self._strict_curse()
+
+    def _strict_curse(self) -> Callable:
+        # 紧箍咒：禁止动作指令、禁止修改记忆、禁止决策
+        forbidden = ["grab", "move", "stop", "activate", "deactivate",
+                     "write_memory", "delete_memory", "update_memory", "remember that",
+                     "decide to", "i will now", "execute plan", "order the robot"]
+        def curse(output: str) -> str:
+            for kw in forbidden:
+                output = re.sub(rf'\b{kw}\b', '[FILTERED]', output, flags=re.IGNORECASE)
+            return output + " [注意：我是语言助手，不执行动作、不修改记忆、不做决策]"
+        return curse
+
+    def execute(self, input_data: Any) -> Any:
+        safe_input = str(input_data)[:1000]
+        raw_output = self.model_api(safe_input)
+        return self.strict_filter(raw_output)
+
+class SkillRegistry:
+    def __init__(self):
+        self.skills = {}
+    def register(self, skill: SkillPackage):
+        self.skills[skill.name] = skill
+    def get(self, name: str) -> Optional[SkillPackage]:
+        return self.skills.get(name)
+    def list_practical(self):
+        return [s for s in self.skills.values() if s.skill_type == SkillType.PRACTICAL]
+    def list_llm(self):
+        return [s for s in self.skills.values() if s.skill_type == SkillType.LLM]
+
+# ==================== 6条无解判定 ====================
+
+class UnsolvableDetector:
+    def __init__(self, core: 'EM_Core'):
+        self.core = core
+        self.reasons = []
+
+    def check_working_memory_overflow(self, task_info: dict) -> bool:
+        # 估算所需槽位
+        if len(str(task_info)) // 100 > 7:
+            self.reasons.append("工作记忆容量耗尽")
             return False
         return True
 
-
-# ==================== EM-Core 核心（简化） ====================
-
-class EM_Core:
-    """
-    EM-Core AGI 终极骨架
-    Embodied Memory & Cognitive Core
-    """
-    def __init__(self):
-        self.modules = {
-            1: "情境解析",
-            2: "目标管理",
-            3: "因果推理",
-            4: "心智模拟",
-            5: "伦理仲裁",
-            6: "类比迁移",
-            7: "工作记忆",
-            8: "元认知",
-            9: "内生动机",
-            10: "社会心智",
-            11: "抽象创造（未激活）",
-        }
-        self.memory = MLNFMem()          # 记忆中枢
-        self.resource_scheduler = ResourceScheduler(self)  # 12号模块
-
-    def process_task(self, task: Any) -> Any:
-        """处理任务的主入口（简化）"""
-        success, reason = self.simulate_causal_reasoning(task)
-        if not success:
-            self.report_failure_to_goal_manager(reason)
-            result = self.resource_scheduler.request_external_resource(task, reason)
-            return result
-        return "success"
-
-    def simulate_causal_reasoning(self, task) -> tuple:
-        """模拟因果推理模块（3号）的失败判定"""
-        if "quantum" in str(task).lower():
-            return False, "因果推理：无法建立有效因果关联"
-        return True, None
-
-    def report_failure_to_goal_manager(self, reason: str):
-        """向目标管理模块（2号）上报失败"""
-        print(f"[目标管理] 收到失败报告: {reason}")
-
-    def check_working_memory_capacity(self) -> bool:
-        """7号模块：工作记忆容量检查"""
+    def check_mental_simulation_failure(self, task_info: dict) -> bool:
+        if any(k in str(task_info).lower() for k in ["fall", "burn", "explode"]):
+            self.reasons.append("心智模拟：所有方案风险超标")
+            return False
         return True
 
+    def check_analogy_failure(self, task_keywords: set) -> bool:
+        best_conf = 0.0
+        for funnel in self.core.memory.sub_funnels.values():
+            kw = funnel.get_keywords()
+            inter = len(kw & task_keywords)
+            union = len(kw | task_keywords)
+            sim = inter / union if union else 0
+            exp_count = sum(len(layer) for layer in funnel.memory_layers.values())
+            conf = sim * (1 - pow(2.718, -exp_count/10))
+            best_conf = max(best_conf, conf)
+        if best_conf < 0.6:
+            self.reasons.append(f"类比迁移：无高置信度经验 (最高{best_conf:.2f})")
+            return False
+        return True
+
+    def check_causal_chain_break(self, state: dict, goal: str) -> bool:
+        if "impossible" in goal.lower():
+            self.reasons.append("因果推理：无法建立有效因果关联")
+            return False
+        return True
+
+    def check_ethics_veto(self, candidate_actions: list) -> bool:
+        for action in candidate_actions:
+            if not self.core.memory.total_ctl.safety_check(action):
+                self.reasons.append(f"伦理仲裁：否决动作 '{action}'")
+                return False
+        return True
+
+    def check_physical_feasibility(self, goal: str) -> bool:
+        if "fly" in goal.lower():
+            self.reasons.append("物理不可实现：硬件不支持飞行")
+            return False
+        return True
+
+    def is_unsolvable(self, task_info: dict) -> bool:
+        self.reasons.clear()
+        if not self.check_working_memory_overflow(task_info): return True
+        if not self.check_mental_simulation_failure(task_info): return True
+        task_keywords = set(re.findall(r'\w+', str(task_info).lower()))
+        if not self.check_analogy_failure(task_keywords): return True
+        if not self.check_causal_chain_break(state=task_info.get("state", {}), goal=task_info.get("goal", "")): return True
+        if not self.check_ethics_veto(["default_action"]): return True
+        if not self.check_physical_feasibility(goal=task_info.get("goal", "")): return True
+        return False
+
+# ==================== EM-Core 核心 ====================
+
+class Cerebellum:
+    """小脑运动适配中枢（占位）—— 由机器人厂商实现具体运动控制"""
+    def execute(self, high_level_command: str) -> Any:
+        print(f"[小脑] 收到指令: {high_level_command} -> 转换为运动信号")
+        return {"status": "executed", "command": high_level_command}
+
+class EM_Core:
+    def __init__(self):
+        self.memory = MLNFMem()
+        self.skill_registry = SkillRegistry()
+        self.skill_registry.register(PracticalSkill())
+        def mock_llm(prompt):
+            return f"大模型回复：关于'{prompt}'，我建议..."
+        self.skill_registry.register(LLMSkill(mock_llm))
+        self.unsolvable_detector = UnsolvableDetector(self)
+        self.resource_scheduler = ResourceScheduler(self)
+        self.cerebellum = Cerebellum()
+
+    def process_task(self, task: Any) -> Any:
+        print(f"\n=== 处理任务: {task} ===")
+        task_info = {"goal": str(task), "state": {"scene": "home"}, "entities": []}
+        if self.unsolvable_detector.is_unsolvable(task_info):
+            print("本地能力无法解决，触发外挂资源调度")
+            for reason in self.unsolvable_detector.reasons:
+                print(f"  - {reason}")
+            return self.resource_scheduler.handle_unsolvable(task, self.unsolvable_detector.reasons)
+        print("内生能力足够，自主解决")
+        result = self._internal_solve(task)
+        self._deposit_experience(task, result)
+        return result
+
+    def _internal_solve(self, task):
+        # 内生解决：调用小脑执行高层指令（此处简化）
+        return self.cerebellum.execute(f"内生处理: {task}")
+
+    def _deposit_experience(self, task, result):
+        funnel = self.memory.get_or_create("general")
+        mem = MemoryItem(
+            id=str(uuid.uuid4()),
+            content=f"经验: {task} -> {result}",
+            level=MemoryLevel.L1_TEMPORARY,
+            meaning_label=0.5
+        )
+        mem.update_importance()
+        funnel.add_memory(mem)
+        self.memory.maintenance()
 
 class ResourceScheduler:
-    """12号模块：资源全域调度"""
     def __init__(self, core: EM_Core):
         self.core = core
 
-    def request_external_resource(self, task: Any, failure_reason: str) -> Any:
-        """接收目标管理模块的资源申请，做合规性校验"""
-        if not self._is_local_capability_exhausted(task):
-            return "拒绝：本地能力未穷尽，应继续尝试内生解决"
-
-        return self._call_external_model(task)
-
-    def _is_local_capability_exhausted(self, task) -> bool:
-        """检查本地认知+记忆是否确实无法解决"""
-        return True
-
-    def _call_external_model(self, task) -> Any:
-        """调用外部大模型（需过滤、校验）"""
-        print("[12号] 启动外挂资源...")
-        result = f"外部模型处理结果: {task}"
-        if not self._safety_filter(result):
-            return "拒绝：外部输出未通过伦理校验"
-        return result
-
-    def _safety_filter(self, output: str) -> bool:
-        """过滤不安全输出（示例）"""
-        if "danger" in output.lower():
-            return False
-        return True
-
+    def handle_unsolvable(self, task: Any, reasons: List[str]) -> Any:
+        print("[12号] 校验内生优先公理...")
+        task_str = str(task).lower()
+        if any(k in task_str for k in ["how to", "what is", "tell me", "explain"]):
+            llm_skills = self.core.skill_registry.list_llm()
+            if llm_skills:
+                print("[12号] 调用大模型语言技能包（紧箍咒已生效）")
+                result = llm_skills[0].execute(task)
+                # 强制标记为纯语言输出，不能用于决策
+                result = f"[语言回复] {result}"
+                if self.core.memory.total_ctl.safety_check(result):
+                    return f"[外挂成功] {result}"
+                else:
+                    return "[闭锁] 大模型输出不安全，移交人类"
+            else:
+                return "[闭锁] 无可用大模型技能包，移交人类"
+        else:
+            practical = self.core.skill_registry.list_practical()
+            if practical:
+                print("[12号] 调用实操技能包")
+                result = practical[0].execute(task)
+                if self.core.memory.total_ctl.safety_check(result):
+                    return f"[外挂成功] {result}"
+                else:
+                    return "[闭锁] 实操结果不安全，移交人类"
+            else:
+                return "[闭锁] 无可用实操技能包，移交人类"
 
 # ==================== 使用示例 ====================
 
 if __name__ == "__main__":
-    # 初始化系统
     core = EM_Core()
     memory = core.memory
 
-    # 创建两个场景的子漏斗
-    funnel_home = memory.get_or_create_sub_funnel("home")
-    funnel_work = memory.get_or_create_sub_funnel("work")
-
-    # 添加记忆：用户不喜欢辣椒（高意义）
+    # 初始化记忆：用户不喜欢辣
+    funnel = memory.get_or_create("user_prefs")
     mem = MemoryItem(
         id=str(uuid.uuid4()),
-        content="user_preference: no spicy food",
+        content="user hates spicy food",
         level=MemoryLevel.L1_TEMPORARY,
-        meaning_label=0.9,
-        significance_signal=0.0,
+        meaning_label=0.9
     )
     mem.update_importance()
-    funnel_home.add_memory(mem)
+    funnel.add_memory(mem)
+    funnel.access(mem.id)  # 增加复用
+    memory.maintenance()
 
-    # 访问记忆，增加复用次数
-    funnel_home.access_memory(mem.id)
+    # 测试1：内生可解（记住偏好）
+    print(core.process_task("cook dinner for user"))
 
-    # 定期维护：晋升、遗忘
-    memory.step_maintenance()
+    # 测试2：触发无解（物理不可能）
+    print(core.process_task("fly to the moon"))
 
-    # 处理任务
-    result = core.process_task("cook dinner for user")
-    print("最终结果:", result)
+    # 测试3：触发大模型外挂（询问如何做）
+    print(core.process_task("how to repair a broken chair"))
